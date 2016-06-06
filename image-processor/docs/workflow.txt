@@ -1,0 +1,66 @@
+== System Workflow ==
+= main.cpp
+
+- Clean 'field' image
+- Fetch image from Left camera
+- Fetch image from Right camera
+- Make a copy of the camera images (for showing the unchanged version as stream)
+
+On both images:
+
+	- Detect ArUco markers	(*)
+	- Detect ball	(*)
+	- Draw ball on the 'field' image
+	- Go through each marker found
+	- Get center and rotation of each marker
+	- Retrieve the team of the current player (dictionary lookup)
+	- Retrieve the team colour and the player's number
+	- Calculate and draw the player on the field
+	- If a movement command has been issued to a specific robot:
+		* Check if target location has been reached
+		* If not: show target location and line connecting it to the player
+		* Send command to robot, if it has not already been sent
+
+= markerdetector.cpp
+
+- If image is not a grayscale (8UC1), convert it to grayscale (BGR2GRAY)
+- Threshold image:
+	# Using an adaptive threshold (ADAPTIVE_THRESHOLD_MEAN_C): the threshold value is the mean of the block neighborhood minus a given C param.
+- Detect all the rectangles in the image:
+	- Calculate min/max size of a valid contour
+	- Find contours:
+		# Get absolutely all the contour points (no compression/approximation)
+	- Check that each contour found (e.g. candidate markers):
+		- Has 4 sizes (points)
+		- Is convex
+		- Its min size is greather than 1x10^-10
+		- Its min size is greather than 10 (remove points that are too close to each other)
+	- Sort the points of each contour in anti-clockwise order
+	- Remove candidates that are too small (checking the perimeter)
+	- Identify each marker (get its ID)	(*)
+	- Remove duplicates (if any)
+
+= arucofidmarkers.cpp
+- If image is not a grayscale (8UC1), convert it to grayscale (BGR2GRAY)
+- Threshold image:
+	# Uses a binary threshold (THRESH_BINARY) together with the Otsu's algorithm (THRESH_OTSU) to determine the optimal threshold value
+- Check if border is black
+	# Markers are 7x7 blocks with 1 black block as border (quiet zone)
+- Check if inner blocks are black or white
+- Check every possible rotation
+	# Get the hamming distance to the nearest possible word (calculating the minimum number of errors that could have transformed a word into another)
+- Convert bits (black/white) into an integer
+	
+
+= BallFinder.cpp
+
+- Convert image to HSV (Hue, Saturation, Value)
+- Threshold the image 
+	# Removing anything not red
+- Remove small objects from the foreground
+	# Morphological opening (erode-dilate)
+- Fill small holes in the foreground
+	# Morphological closing (dilate-erode)
+- Apply gaussian blur (to avoid false circle detection)
+- Find circles within a certain range
+	# Use HoughCircles
